@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drag Path</title>
+<script>
+  (function() {
+    const pwd = prompt("Bitte Passwort eingeben:");
+    if (pwd !== "291221") {
+      document.documentElement.innerHTML = "<body style='background:#0f0b09;display:flex;align-items:center;justify-content:center;height:100vh;margin:0'><p style='color:#8a7060;font-family:Georgia,serif;font-size:1.1rem;letter-spacing:0.05em;'>Falsches Passwort.</p></body>";
+    }
+  })();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --ink: #1a1614;
+  --paper: #f5f0eb;
+  --warm: #c9a87c;
+  --blush: #e8d5c4;
+  --deep: #2d1f1a;
+  --muted: #8a7060;
+  --nav-h: 64px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: rgba(245,240,235,0.93);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--blush);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+}
+
+.nav-logo {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.3em;
+  color: var(--warm);
+  text-transform: uppercase;
+  margin-right: 2rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-timeline {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  gap: 0;
+}
+.nav-timeline::-webkit-scrollbar { display: none; }
+
+.nav-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 0.9rem;
+  white-space: nowrap;
+  position: relative;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.nav-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0.9rem; right: 0.9rem;
+  height: 1.5px;
+  background: var(--warm);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+.nav-btn:hover { color: var(--ink); }
+.nav-btn.active { color: var(--ink); }
+.nav-btn.active::after { transform: scaleX(1); }
+
+.nav-sep {
+  font-size: 0.5rem;
+  color: var(--blush);
+  flex-shrink: 0;
+  padding: 0 0.1rem;
+  user-select: none;
+}
+
+/* ── INTRO ── */
+.intro {
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+.intro-bg {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 70% at 50% 60%, #2d1f1a 0%, #0f0b09 100%);
+}
+.stars { position: absolute; inset: 0; overflow: hidden; }
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle var(--d, 3s) ease-in-out infinite alternate;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes twinkle {
+  from { opacity: 0.1; transform: scale(0.8); }
+  to   { opacity: 0.9; transform: scale(1.2); }
+}
+.intro-content {
+  position: relative; z-index: 10;
+  text-align: center; padding: 2rem;
+}
+.eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem; letter-spacing: 0.25em;
+  color: var(--warm); text-transform: uppercase;
+  opacity: 0; animation: fadeUp 1s ease forwards 0.5s;
+  margin-bottom: 1.5rem;
+}
+.intro-title {
+  font-size: clamp(2.8rem, 8vw, 6rem);
+  font-weight: 300; font-style: italic;
+  color: var(--paper); line-height: 1.1;
+  opacity: 0; animation: fadeUp 1.2s ease forwards 0.8s;
+  margin-bottom: 1rem;
+}
+.intro-title em { font-style: normal; color: var(--warm); }
+.intro-sub {
+  font-size: 1rem; font-weight: 300;
+  color: rgba(245,240,235,0.45); letter-spacing: 0.05em;
+  opacity: 0; animation: fadeUp 1s ease forwards 1.3s;
+}
+.scroll-hint {
+  position: absolute; bottom: 2.5rem; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  opacity: 0; animation: fadeUp 1s ease forwards 2s;
+}
+.scroll-hint span {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 0.2em; color: rgba(245,240,235,0.3); text-transform: uppercase;
+}
+.scroll-line {
+  width: 1px; height: 40px;
+  background: linear-gradient(to bottom, var(--warm), transparent);
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+@keyframes scrollPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── REVEAL ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── CHAPTER SHELL ── */
+.chapter { position: relative; }
+.chapter-warm { background: var(--paper); }
+.chapter-cool { background: #f9f7f5; }
+.chapter-green { background: #eef7f0; }
+
+.chapter-header {
+  padding: 7rem 2rem 3rem;
+  max-width: 720px; margin: 0 auto;
+  position: relative;
+}
+.chapter-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.3em;
+  color: var(--warm); text-transform: uppercase;
+  display: block; margin-bottom: 1.2rem;
+}
+.chapter-title {
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  font-weight: 300; font-style: italic;
+  line-height: 1.15; color: var(--deep);
+  white-space: nowrap;
+}
+.chapter-cool .chapter-title { color: #111; }
+.chapter-green .chapter-title { color: #1a3a22; }
+
+.chapter-line {
+  width: 60px; height: 1px;
+  background: var(--warm); margin-top: 2rem;
+  transform-origin: left;
+  transition: opacity 0.8s ease 0.3s, transform 0.8s ease 0.3s;
+}
+.chapter-line.reveal { transform: scaleX(0); }
+.chapter-line.reveal.visible { transform: scaleX(1); opacity: 1; }
+
+.deco-number {
+  position: absolute; right: 2rem; top: 50%;
+  transform: translateY(-50%);
+  font-size: 11rem; font-weight: 300; font-style: italic;
+  color: rgba(201,168,124,0.05); line-height: 1;
+  pointer-events: none; user-select: none;
+}
+@media (max-width: 600px) { .deco-number { display: none; } }
+
+.chapter-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--blush), transparent);
+}
+
+/* ── PROSE SECTION ── */
+.prose-section {
+  padding: 1rem 2rem 7rem;
+  max-width: 720px; margin: 0 auto;
+}
+
+.message-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.15em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 2.5rem;
+  display: flex; align-items: center; gap: 1rem;
+}
+.message-meta::after {
+  content: ''; flex: 1; height: 1px; background: var(--blush);
+}
+
+.paragraph {
+  margin-bottom: 2rem;
+}
+.paragraph p {
+  font-size: clamp(1.12rem, 2.4vw, 1.32rem);
+  font-weight: 300; line-height: 1.9; color: var(--ink);
+}
+.chapter-cool .paragraph p { color: #2a2a2a; line-height: 2; }
+
+.pull-quote {
+  margin: 3.5rem 0;
+  padding: 1.5rem 0 1.5rem 2rem;
+  border-left: 2px solid var(--warm);
+}
+.pull-quote p {
+  font-size: clamp(1.35rem, 2.8vw, 1.85rem);
+  font-style: italic; font-weight: 300;
+  line-height: 1.5; color: var(--deep);
+}
+
+/* Tags */
+.tag-line {
+  display: flex; flex-wrap: wrap; gap: 0.6rem;
+  margin: 1.8rem 0;
+}
+.tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.1em;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--warm);
+  color: var(--muted); text-transform: uppercase;
+  border-radius: 2px;
+}
+.tag-hero-wrap { margin: 1.2rem 0 3rem; }
+.tag-hero {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--warm);
+  border-left: 3px solid var(--warm);
+  background: rgba(201,168,124,0.06);
+  padding: 0.6rem 1.2rem;
+}
+.tag-hero span {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* Highlight */
+.hl { color: var(--warm); font-style: italic; }
+
+/* ── CHAT WINDOW ── */
+.chat-section {
+  padding: 0 2rem 7rem;
+  max-width: 860px; margin: 0 auto;
+}
+
+.chat-date {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: #bbb;
+  text-align: center; margin: 2rem 0 1.2rem;
+}
+
+/* Each message group = one sender block */
+.msg-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.8rem;
+}
+.msg-group.daniel { align-items: flex-end; }
+.msg-group.heike  { align-items: flex-start; }
+
+.msg-avatar {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.44rem; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 0.3rem; flex-shrink: 0;
+}
+.msg-avatar.d { background: var(--deep); color: var(--paper); }
+.msg-avatar.h { background: var(--blush); color: var(--muted); }
+.msg-group.daniel .msg-avatar { align-self: flex-end; }
+
+.bubble {
+  max-width: 82%;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.6;
+  margin-bottom: 0.25rem;
+}
+.msg-group.heike .bubble {
+  background: white;
+  border: 1px solid #ede8e2;
+  border-top-left-radius: 3px;
+  color: var(--ink);
+}
+.msg-group.daniel .bubble {
+  background: var(--deep);
+  color: var(--paper);
+  border-top-right-radius: 3px;
+}
+
+/* WhatsApp green bubbles */
+.bubble-wa {
+  background: #e5f8e8 !important;
+  border: 1px solid #b8e6bc !important;
+  color: var(--ink) !important;
+}
+
+.msg-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem; letter-spacing: 0.05em;
+  color: #bbb; margin-top: 0.1rem;
+}
+.msg-group.daniel .msg-time { text-align: right; }
+
+.phone-number {
+  font-family: 'DM Mono', monospace;
+  font-size: 1rem; letter-spacing: 0.15em;
+  color: var(--warm); display: block; margin-top: 0.4rem;
+}
+
+/* WA transition */
+.wa-transition {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 1rem;
+  margin: 2.5rem 0;
+}
+.wa-line {
+  display: flex; align-items: center; gap: 1rem; width: 100%;
+}
+.wa-line::before, .wa-line::after {
+  content: ''; flex: 1; height: 1px;
+}
+.wa-line::before { background: linear-gradient(to right, transparent, #ddd); }
+.wa-line::after  { background: linear-gradient(to left,  transparent, #ddd); }
+.wa-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #ccc; white-space: nowrap;
+}
+.wa-dots { display: flex; gap: 5px; align-items: center; }
+.wa-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: #ccc;
+  animation: waPulse 1.4s ease-in-out infinite;
+}
+.wa-dot:nth-child(2) { animation-delay: 0.2s; }
+.wa-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes waPulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.wa-badge {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: #aaa;
+}
+.wa-dot-green {
+  width: 7px; height: 7px; border-radius: 50%; background: #25D366;
+}
+
+/* ── TWO-VOICE ── */
+.voice-block {
+  margin-bottom: 3.5rem;
+}
+.voice-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.voice-label::before {
+  content: ''; width: 3px; height: 14px;
+  background: var(--blush); border-radius: 2px; flex-shrink: 0;
+}
+.voice-label::after {
+  content: ''; flex: 1; height: 1px; background: #ede8e2;
+}
+.voice-daniel .voice-label { flex-direction: row-reverse; }
+.voice-daniel .voice-label::before { background: rgba(45,31,26,0.25); }
+.voice-heike  { padding-right: 3rem; }
+.voice-daniel { padding-left:  3rem; }
+.voice-daniel .voice-label::after { display: none; }
+.voice-daniel .voice-label::before { order: 3; }
+
+.voice-text p {
+  font-size: clamp(1.08rem, 2.2vw, 1.25rem);
+  font-weight: 300; line-height: 1.95; color: var(--ink);
+  margin-bottom: 1.1rem;
+}
+.voice-text p:last-child { margin-bottom: 0; }
+
+@media (max-width: 600px) {
+  .voice-heike { padding-right: 0.5rem; }
+  .voice-daniel { padding-left: 0.5rem; }
+}
+
+/* ── AUDIO PLAYER ── */
+.audio-wrap {
+  margin: 2.5rem 0 3rem;
+  background: #ede9e3;
+  border: 1px solid #ddd8d0;
+  border-radius: 4px;
+  padding: 1.2rem 1.4rem;
+}
+.audio-label-row {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: #aaa;
+  margin-bottom: 0.9rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.audio-label-row::before {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--warm); opacity: 0.7;
+}
+.audio-controls { display: flex; align-items: center; gap: 1rem; }
+.play-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1.5px solid var(--warm); background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--warm); flex-shrink: 0; transition: background 0.2s;
+}
+.play-btn:hover { background: rgba(201,168,124,0.12); }
+.play-btn.playing { background: rgba(201,168,124,0.18); }
+.play-icon, .pause-icon { width: 14px; height: 14px; }
+.pause-icon { display: none; }
+.play-btn.playing .play-icon { display: none; }
+.play-btn.playing .pause-icon { display: block; }
+.audio-right { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+.waveform {
+  display: flex; align-items: center; gap: 2px;
+  height: 26px; cursor: pointer;
+}
+.waveform-bar {
+  flex: 1; border-radius: 2px; background: #cdc5bc;
+  min-width: 2px; transition: background 0.1s;
+}
+.waveform-bar.played { background: var(--warm); }
+.time-row { display: flex; justify-content: space-between; }
+.time-current, .time-total {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem; letter-spacing: 0.05em; color: #aaa;
+}
+.time-current { color: #888; }
+
+/* ── CLOSING ── */
+.closing {
+  background: var(--deep); padding: 8rem 2rem;
+  text-align: center; position: relative; overflow: hidden;
+}
+.closing::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(201,168,124,0.1) 0%, transparent 70%);
+}
+.closing-inner { position: relative; z-index: 2; max-width: 520px; margin: 0 auto; }
+.closing-quote {
+  font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+  font-style: italic; font-weight: 300;
+  color: var(--paper); line-height: 1.6; margin-bottom: 2.5rem;
+}
+.closing-byline {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.25em;
+  color: var(--warm); text-transform: uppercase; opacity: 0.6;
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="nav-logo">Drag Path</span>
+  <div class="nav-timeline">
+    <button class="nav-btn active" onclick="navScrollTo('ch-0')">Schokokuchen</button>
+    <span class="nav-sep">·</span>
+    <button class="nav-btn" onclick="navScrollTo('ch-talk')">First Real Talk</button>
+    <span class="nav-sep">·</span>
+    <button class="nav-btn" onclick="navScrollTo('ch-1')">Nacht-Nachricht</button>
+    <span class="nav-sep">·</span>
+    <button class="nav-btn" onclick="navScrollTo('ch-2')">Die Mauer fällt</button>
+    <span class="nav-sep">·</span>
+    <button class="nav-btn" onclick="navScrollTo('ch-wild')">Wild</button>
+    <span class="nav-sep">·</span>
+    <button class="nav-btn" onclick="navScrollTo('ch-bday')">Geburtstag</button>
+    <span class="nav-sep" style="color:#e0dbd4;">···</span>
+  </div>
+</nav>
+
+<!-- INTRO -->
+<section class="intro">
+  <div class="intro-bg"></div>
+  <div class="stars" id="stars"></div>
+  <div class="intro-content">
+    <p class="eyebrow">Januar – August 2026</p>
+    <h1 class="intro-title">Drag<br><em>Path</em></h1>
+    <p class="intro-sub">Nachrichten, die bleiben</p>
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     KAPITEL 0 — SCHOKOKUCHEN
+════════════════════════════════════════ -->
+<section class="chapter chapter-warm" id="ch-0" style="padding-top: var(--nav-h);">
+  <div class="chapter-header">
+    <span class="chapter-label reveal">Kapitel 0</span>
+    <h2 class="chapter-title reveal">Schokokuchen</h2>
+    <div class="chapter-line reveal"></div>
+    <div class="deco-number">0</div>
+  </div>
+
+  <div class="chat-section">
+
+    <div class="chat-date reveal">25. Januar 2026</div>
+
+    <!-- D: erste Nachricht -->
+    <div class="msg-group daniel reveal">
+      <div class="msg-avatar d">D</div>
+      <div class="bubble">Hey Heike, vielen Dank für das Stück Schoko Kuchen 🍰 Hat mir sehr gut geschmeckt 😊 lg</div>
+      <span class="msg-time">22:41</span>
+    </div>
+
+    <!-- H: zwei Nachrichten -->
+    <div class="msg-group heike reveal">
+      <div class="msg-avatar h">H</div>
+      <div class="bubble">Hey, das freut mich zu hören! 😌</div>
+      <div class="bubble">Beim nächsten Besuch bring ich nochmal welchen mit – kam ja wirklich bei klein und groß gut an 🤭</div>
+      <span class="msg-time">23:09</span>
+    </div>
+
+    <!-- D -->
+    <div class="msg-group daniel reveal">
+      <div class="msg-avatar d">D</div>
+      <div class="bubble">Ouh, Deal 😀 Hab gehört die kleinen hatten viel Spaß.</div>
+      <div class="bubble">Der Weißwein kam bei den großen auch gut an 😉 Auch wenn der nicht nötig gewesen wäre</div>
+    </div>
+
+    <div class="chat-date reveal">26. Januar 2026</div>
+
+    <!-- H -->
+    <div class="msg-group heike reveal">
+      <div class="msg-avatar h">H</div>
+      <div class="bubble">Absolut. So schön und harmonisch, wie die drei zusammen spielen. Und ne Punkband wurde auch bereits gegründet 😌</div>
+      <span class="msg-time">09:26</span>
+    </div>
+
+    <!-- D -->
+    <div class="msg-group daniel reveal">
+      <div class="msg-avatar d">D</div>
+      <div class="bubble">Ja, ich hab ein kurzes Video gesehen. Ich mag, dass du in einer Punkband etwas Harmonisches siehst 😉</div>
+      <span class="msg-time">11:44</span>
+    </div>
+
+    <!-- H -->
+    <div class="msg-group heike reveal">
+      <div class="msg-avatar h">H</div>
+      <div class="bubble">Na klar doch! Wenn harmonisch, dann ja wohl Punk! Da werde ich in der ersten Reihe im Pogo stehen, wenn „die angenagten Äpfel" ihren ersten Auftritt haben. Und ihr seid hoffentlich alle mit dabei 🤭</div>
+      <span class="msg-time">16:28</span>
+    </div>
+
+    <!-- D: Tickets + Telefon -->
+    <div class="msg-group daniel reveal">
+      <div class="msg-avatar d">D</div>
+      <div class="bubble">Klar, aber die Preise für die Karten sind echt saftig seit "hab kein Poo gemacht" und "bin noch gar nicht müde" so durch die Decke gingen 🙈</div>
+      <div class="bubble">Lass uns gerne auf WhatsApp weiter schreiben –<span class="phone-number">0178 5183 xxx</span></div>
+      <span class="msg-time">18:44</span>
+    </div>
+
+    <!-- WA Transition -->
+    <div class="wa-transition reveal">
+      <div class="wa-line"><span class="wa-label">Nimmt sie an?</span></div>
+      <div class="wa-dots">
+        <div class="wa-dot"></div>
+        <div class="wa-dot"></div>
+        <div class="wa-dot"></div>
+      </div>
+      <div class="wa-badge">
+        <div class="wa-dot-green"></div>
+        <span>WhatsApp</span>
+      </div>
+    </div>
+
+    <!-- H: erste WA -->
+    <div class="msg-group heike reveal">
+      <div class="msg-avatar h">H</div>
+      <div class="bubble bubble-wa">Die angenagten Äpfel haben auf jeden Fall schon ein Vinyl Cover, Merch im Auftrag, durch Elisa produzierte Songs und einen Fanclub.<br><br>Der Weg zum Ruhm wurde geebnet🤣</div>
+      <span class="msg-time">27.01 · 15:32</span>
+    </div>
+
+  </div>
+</section>
+<div class="chapter-divider"></div>
+
+<!-- ══════════════════════════════════════
+     KAPITEL TALK — FIRST REAL TALK
+════════════════════════════════════════ -->
+<section class="chapter chapter-warm" id="ch-talk">
+  <div class="chapter-header">
+    <span class="chapter-label reveal">Kapitel 1.5</span>
+    <h2 class="chapter-title reveal">First Real Talk</h2>
+    <div class="chapter-line reveal"></div>
+  </div>
+
+  <div class="prose-section">
+    <div class="message-meta reveal">6. Februar 2026 · Heike &amp; Daniel</div>
+
+    <div class="voice-block voice-heike reveal">
+      <div class="voice-label">Heike</div>
+      <div class="voice-text">
+        <p>Irgendwie Angst vor deiner Reaktion, aber es wäre falsch, es dir nicht zu sagen.</p>
+        <p>Weißt du, wenn ich ehrlich bin, dachte ich bei der ersten Kaffee-Frage: nein, auf keinen Fall. Fuck, was mach ich jetzt? Wie komm ich aus der Nummer wieder raus? Deshalb hat es auch fast einen Tag gedauert, bis ich darauf geantwortet habe. Ich fand unser Gespräch auf Anhieb sympathisch, aber ich wollte mich auch einfach dagegen wehren und dachte mir: nein, das darf dir nicht gefallen, das darfst du nicht gut finden. Und hab mir das dann versucht einzureden und mich dementsprechend verhalten. Und vielleicht auch gar nicht richtig getraut, auf weitere Nachrichten zu schauen, mir dann stattdessen in Ruhe Zeit genommen, bis ich wusste - okay, jetzt kann ich lesen und antworten.</p>
+        <p>Und ab nem gewissen Punkt hat dein <span class="hl">Charme</span> mich dann doch in den Bann gezogen. Maximaler Schwächemoment.</p>
+        <p>Warum ich dir das sage? Weil ich diesen offenen, ehrlichen Umgang mit dir total schätze und du es mir leicht machst, voll in den <span class="hl">Verletzlichkeitsmodus</span> zu gehen, in welchem ich dir jetzt auch schon Dinge über mich erzählt habe, die nicht mal meine engsten Freunde wissen. Und ich habe mir vor langer Zeit geschworen, das wird nie wieder (!) passieren, dass ich überhaupt deepere Fakten von mir preis gebe - stattdessen lieber oberflächlich bleiben, keine Angriffsfläche bieten. Aber jetzt ist hier gerade völlig unerwartet für mich ein <span class="hl">Fass ohne Boden</span> aufgegangen.</p>
+        <p>Ich hab mich noch nie so völlig offen mit einem Mann unterhalten und habe für mich immer ausgeschlossen, dass das überhaupt möglich ist.</p>
+        <p>Dieser Text fühlt sich für mich total weird an und ich bin maximal verunsichert (Overthinking statt Kopf aus) - aber auch das muss raus aus meinem Kopf. Du kannst ihn einfach lesen und musst dazu auch nichts sagen.</p>
+      </div>
+    </div>
+
+    <div class="voice-block voice-daniel reveal">
+      <div class="voice-label">Daniel</div>
+      <div class="voice-text">
+        <p>Hey… ich höre dich. Ich verstehe was du sagst, wenn ich auch den Schmerz deiner Vergangenheit nicht fühle. Deine Offenheit, "dir darf das nicht gefallen", wow, aber warum? verheiratet?</p>
+        <p>Jede Nachricht, Zeile, Wort hat mich Überwindung gekostet. Kuchen lecker danke check, next: Öffne sie, langsam, mit Charme, aber nicht zu viel, wie viel ist zu schnell? Jetzt hast du den Bogen überspannt, nochmal gelesen, shit du idiot, kein Wunder, dass du needy rüber kommst, widerspreche ihr jetzt, so steht's im bad boy playbook, frag claude ai nochmal wie man eine sachliche aussage flirty macht, verstehe ich, fühle ich nicht, damn… stunden vergehen: Emphatische, einfühlsame, freundliche, reflektierte, verspielte antwort, WOW. repeat.</p>
+        <p>dein Verletzlichkeitsabschnitt: ich war mindblown! Zum einen, dass du so eine harte Nuss bist. Du bringst das ganz locker und natürlich rüber, bis auf das obligatorisch süße "ich rede mich um kopf und kragen" 🤭</p>
+        <p>ICH? nur bei mir öffnet sie sich so? bin ich besonders? bin ich wirklich ein guter Mensch? halt's maul ego, es geht nicht um dich. Es geht um ihre <span class="hl">Verletzlichkeit</span>. Behandle sie angemessen. gib ihr sicherheit zurück, kein wort gut genug, jedes zu dick, oder? also mir würde es gefallen. dann schreib es auch, das ist dann authentisch du depp!</p>
+        <p>Fass ohne Boden: mir geht es ganz genauso! ich warte seit Mittwoch auf den Punkt, der den Konflikt startet, die Red Line die keiner überschreiten will, den deal breaker. Aber dann: wir SIND fckin erwachsen, selbst wenn der Konflikt kommt, handlen wir ihn halt, seh ich so, ich anders, kompromiss? kann ich mit leben, ich auch, done, next.</p>
+        <p>Dachte Monogamie wärs jetzt, doch dann aus dem nichts: Reflektion! das was ich von mir erwarte, machst du innerhalb von ner stunde ohne ai, cousine, therapeutin. Du sagst nicht wie ein teenie "für dich mach ich das", nein der eigene standpunkt wird hinterfragt…</p>
+        <p>Der Grundsatz ist immer: Mein Gegenüber hat seine Gründe, lass sie mich verstehen, dann kann ich sie vllt teilen. Ich <span class="hl">liebe</span> es mich mit dir zu unterhalten.</p>
+        <p>Danke für deine Offenheit, wirklich, ich fühle mich <span class="hl">geehrt</span> und hoffe meine Worte geben dir etwas zurück.</p>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="chapter-divider"></div>
+
+<!-- ══════════════════════════════════════
+     KAPITEL I — NACHT-NACHRICHT
+════════════════════════════════════════ -->
+<section class="chapter chapter-warm" id="ch-1">
+  <div class="chapter-header">
+    <span class="chapter-label reveal">Kapitel I</span>
+    <h2 class="chapter-title reveal">Das Kribbeln, das bleibt</h2>
+    <div class="chapter-line reveal"></div>
+    <div class="deco-number">I</div>
+  </div>
+
+  <div class="prose-section">
+    <div class="message-meta reveal">Nacht-Nachricht · Heike</div>
+
+    <div class="paragraph reveal"><p>Das hier ist eine Nacht-Nachricht für dein Morgen-Ich 😌</p></div>
+
+    <div class="paragraph reveal">
+      <p>Ich liege im Bett und denke nach. Auch an Mittwoch. An dich. Und daran, wie sehr ich mich darauf freue, dich weiter kennenzulernen – nicht nur im Besonderen, sondern auch im ganz Normalen:</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Kaffee trinken</span>
+      <span class="tag">Reden</span>
+      <span class="tag">Lachen</span>
+      <span class="tag">Musik hören</span>
+      <span class="tag">Spielende Kinder</span>
+      <span class="tag">Gemeinsam müde sein</span>
+      <span class="tag">Netflix &amp; Chill</span>
+      <span class="tag">Waldspaziergang mit Ajka</span>
+    </div>
+
+    <div class="tag-hero-wrap reveal">
+      <div class="tag-hero"><span>Dinge teilen, die nichts „Großes" sein müssen</span></div>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Und dann ist da dieses andere Gefühl mit dir. Dieses ständige <span class="hl">Kribbeln</span>, das gegenseitige Teasing per Nachricht oder am Telefon und dann im echten Leben die Blicke, das Näherkommen, die Momente, in denen man genau weiß, dass man sich gerade bewusst zurückhält. Diese Spannung…</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Ich mag diese Mischung sehr: <span class="hl">Alltag</span> und intensive <span class="hl">Anziehung</span>, was uns immer wieder aus dem Konzept bringt.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Ich bin wirklich froh, dass du mich angeschrieben hast und wir jetzt hier sind, wo wir sind. Hab einen tollen Start in den Tag und denk gern mal kurz an mich.🤭</p>
+    </div>
+  </div>
+</section>
+<div class="chapter-divider"></div>
+
+<!-- ══════════════════════════════════════
+     KAPITEL II — DIE MAUER FÄLLT
+════════════════════════════════════════ -->
+<section class="chapter chapter-cool" id="ch-2">
+  <div class="chapter-header">
+    <span class="chapter-label reveal">Kapitel II</span>
+    <h2 class="chapter-title reveal">Die Mauer fällt</h2>
+    <div class="chapter-line reveal"></div>
+    <div class="deco-number">II</div>
+  </div>
+
+  <div class="prose-section">
+    <div class="message-meta reveal" style="color:#bbb;">16. März 2026 · Heike</div>
+
+    <div class="paragraph reveal">
+      <p>Ich bin zwar rhetorisch fit und weiß, dass ich gut schreiben kann (wenn es mir wichtig ist und ich mir Mühe gebe). Das bezieht sich aber besonders auf Alltags- oder Fachthemen.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Mich emotional auszudrücken fällt mir dagegen total schwer und kostet mich sehr viel Überwindung, also so deep emotional. Klar sag ich meinen Freunden, wie wichtig sie mir sind (bei jedem anders, weil alle anders ticken), aber emotionale Kommunikation mit einem Mann ist für mich next Level schwierig. Begründet durch meine negativen Erfahrungen in vor allem den letzten 10-15 Jahren als auch der errichteten <span class="hl">Mauer</span>.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Du bringst aber irgendeine <span class="hl">Leichtigkeit</span> in mein Leben, in der ich sehr viel emotional schöne Dinge denke und zumindest versuche, sie per Text zu formulieren (laut ausgesprochen, während du bei mir bist, an sowas kann ich noch nicht denken, dafür arbeite ich noch zu viel an mir - lass dich davon bitte nicht irritieren, das hat nix mit dir zu tun, nur mit meinen Erfahrungen und braucht etwas mehr Zeit in meinem irren Prozess).</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Aber was will ich eigentlich sagen? Ich hatte heute Morgen total Angst, als ich diese Idee mit dem Urlaub laut ausgesprochen hat, damit fings eigentlich an. Weil ich dachte: okay, jetzt hast du's ausgesprochen und jetzt denkt er endgültig, du drehst völlig frei zukunftsprojektionstechnisch.</p>
+    </div>
+
+    <div class="pull-quote reveal">
+      <p>Ich hab deinen Umgang damit und die Sprachnachricht aber so hart gefeiert, dass ich sie mehrmals abgehört hab.</p>
+    </div>
+
+    <!-- AUDIO PLAYER -->
+    <div class="audio-wrap reveal">
+      <div class="audio-label-row">Daniel · Sprachnachricht</div>
+      <div class="audio-controls">
+        <button class="play-btn" id="play-btn" onclick="togglePlay()">
+          <svg class="play-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l11 5.5-11 5.5V2.5z"/></svg>
+          <svg class="pause-icon" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg>
+        </button>
+        <div class="audio-right">
+          <div class="waveform" id="waveform" onclick="seekAudio(event)"></div>
+          <div class="time-row">
+            <span class="time-current" id="time-current">0:00</span>
+            <span class="time-total" id="time-total">–:––</span>
+          </div>
+        </div>
+      </div>
+      <audio id="voice-note" preload="metadata" crossorigin="anonymous"><source src="https://raw.githubusercontent.com/danjo83/DragPath/main/PTT-20260316-WA0011_Urlaub.mp3" type="audio/mpeg"></audio>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Dann kam die Angst „oh Gott, übertreiben wir? Ist das ne gute Idee? Das ist in vier Monaten und wir kennen uns grade mal knapp zwei". Und dann haben wir uns ausgetauscht und diese Angst ist einfach wie im Nix verflogen.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Es fühlt sich mit dir alles so leicht an, selbst meine Ängste (davon gibt es sehr viele und kennst nur die Spitze des Eisbergs), die mir normalerweise schlaflose Nächte bereiten.</p>
+    </div>
+
+    <div class="paragraph reveal"><p>Ich mag alles daran –</p></div>
+
+    <div class="tag-line reveal">
+      <span class="tag">dass du mich aus der Reserve lockst, ohne es zu wissen</span>
+      <span class="tag">wie umsichtig &amp; wertschätzend du bist</span>
+      <span class="tag">deine offene emotionale Art fernab dieses „Ich bin halt der harte Hund und mach einen auf dicken Macker"-Verhaltens</span>
+      <span class="tag">deine kritische Selbstreflexion (auch wenn du dir aus meiner Sicht viel weniger Stress machen müsstest - aber who am i to judge 😉)</span>
+      <span class="tag">deine Rolle und Fürsorge als Vater/mit deinen lieben Verwandten/Freunden/Arbeitskollegen</span>
+      <span class="tag">den umsichtigen Blick auf die Welt</span>
+      <span class="tag">den Humor</span>
+      <span class="tag">den Sex (nur so am Rande, weil grade emotionales Thema - aber WTH!!!!! 😈)</span>
+      <span class="tag">und und und.</span>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Und ich bin mir deiner/eurer Situation sehr bewusst &amp; ich weiß, dass das keine einfache ist und sich alles erst finden wird. Dass es für euch eine emotionale Achterbahnfahrt ist, die viel erfordert und von euch fordern wird. Aber ich werde auf jeden Fall in keiner Weise in irgendeiner Form im Weg stehen - ich will da sein als Support, nicht als Konkurrentin für Elisa oder sowas. Und ich will, dass du das weißt.</p>
+    </div>
+
+    <div class="pull-quote reveal">
+      <p>Du bist mir sehr wichtig und sowas von ans <span class="hl">Herz</span> gewachsen, dass ich manchmal echt gekniffen werden will, weil ich Sorge habe, zu explodieren. Aber ich lieb alles daran!</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Danke, Daniel! Ich bin sehr positiv freudig in Erwartung darüber, wie sich das alles entwickeln wird (und das ganz ohne Druck gemeint) 💚</p>
+    </div>
+  </div>
+</section>
+<div class="chapter-divider"></div>
+
+<!-- ══════════════════════════════════════
+     KAPITEL WILD
+════════════════════════════════════════ -->
+<section class="chapter chapter-green" id="ch-wild">
+  <div class="chapter-header">
+    <span class="chapter-label reveal" style="color:#4a7a52;">Kapitel Wild</span>
+    <h2 class="chapter-title reveal">Wild</h2>
+    <div class="chapter-line reveal" style="background:#7ab885;"></div>
+  </div>
+
+  <div class="chat-section">
+
+    <div class="chat-date reveal">Samstag, 21. März 2026</div>
+
+    <div class="msg-group daniel reveal">
+      <div class="msg-avatar d">D</div>
+      <div class="bubble bubble-wa">Naja, ich hab ja noch Gedanken an dich für die nächsten Wochen auf Abruf bereit 😏 Wie kann dein heißer Körper nur an einem so versauten Gehirn dranhängen. Absoluter Wahnsinn mit dir 🤯🤯🤯<br><br>Ich hätte echt nie zu träumen gewagt einmal solch eine Verbindung zu haben 🫦<br><br>Und ich fang ja erst an "Mach mit mir was du willst" so richtig auszuleben 😈 keine Ahnung, wo wir da noch landen, aber gut, dass wir schon ein Safe Word haben 🤭<br><br>Allein schon, um dich noch hilfloser vor mir zu haben will ich noch ein zwei Kilo Muskelmasse drauf packen 😉 Du Biest. Du hast dir das soo verdient so angepackt zu werden, wie es dir gefällt...<br><br>Ich liebe alles an unserem Sex</div>
+      <span class="msg-time">18:08</span>
+    </div>
+
+    <div class="msg-group daniel reveal">
+      <div class="bubble bubble-wa">Allein die Momente mit dir auf der Couch, wenn deine Augen sich langsam schließen, dein Kopf sich in deinen Nacken senkt und deine Hand zärtlich aber zielsicher in meinen Nacken wandert 🤯</div>
+    </div>
+
+    <div class="msg-group daniel reveal">
+      <div class="bubble bubble-wa">Es passt einfach jedes Level</div>
+    </div>
+
+    <div class="msg-group daniel reveal">
+      <div class="bubble bubble-wa">Ich vergöttere dich im Bett 😇😈</div>
+    </div>
+
+  </div>
+</section>
+
+<div class="chapter-divider"></div>
+
+<!-- ══════════════════════════════════════
+     KAPITEL GEBURTSTAG
+════════════════════════════════════════ -->
+<section class="chapter" id="ch-bday" style="background:#fdf8f0;">
+  <div class="chapter-header">
+    <span class="chapter-label reveal" style="color:var(--warm);">Juli – August</span>
+    <h2 class="chapter-title reveal">Geburtstag</h2>
+    <div class="chapter-line reveal"></div>
+  </div>
+
+  <div class="prose-section">
+
+    <!-- Daniel -->
+    <div class="message-meta reveal">25. Juli 2026 · Daniel · Dornumersiel</div>
+
+    <div class="paragraph reveal">
+      <p>Ferienhaus in Dornumersiel. Daniel öffnet ein Päckchen:</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Veganer Schoko-Beeren Protein-Riegel</span>
+      <span class="tag">Weiße FCK NZS Socken</span>
+      <span class="tag">Ein QR Code</span>
+    </div>
+
+    <div class="paragraph reveal" style="margin-top: 2.5rem;">
+      <p>Der Code führt zu einer Überraschung:</p>
+    </div>
+
+    <div class="reveal" style="margin: 1.5rem 0 4rem;">
+      <div style="display:inline-flex; flex-direction:column; align-items:center; gap:1rem; padding:1.5rem; border:1px solid var(--blush); background:white;">
+        <a href="https://tally.so/r/81y5er" target="_blank" style="display:flex;flex-direction:column;align-items:center;gap:0.8rem;text-decoration:none;">
+          <svg width="140" height="140" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+            <!-- QR finder patterns -->
+            <rect width="140" height="140" fill="white"/>
+            <!-- Top-left finder -->
+            <rect x="10" y="10" width="40" height="40" rx="3" fill="#2d1f1a"/>
+            <rect x="16" y="16" width="28" height="28" rx="2" fill="white"/>
+            <rect x="22" y="22" width="16" height="16" rx="1" fill="#2d1f1a"/>
+            <!-- Top-right finder -->
+            <rect x="90" y="10" width="40" height="40" rx="3" fill="#2d1f1a"/>
+            <rect x="96" y="16" width="28" height="28" rx="2" fill="white"/>
+            <rect x="102" y="22" width="16" height="16" rx="1" fill="#2d1f1a"/>
+            <!-- Bottom-left finder -->
+            <rect x="10" y="90" width="40" height="40" rx="3" fill="#2d1f1a"/>
+            <rect x="16" y="96" width="28" height="28" rx="2" fill="white"/>
+            <rect x="22" y="102" width="16" height="16" rx="1" fill="#2d1f1a"/>
+            <!-- Data dots (decorative pattern) -->
+            <rect x="60" y="10" width="6" height="6" fill="#2d1f1a"/><rect x="72" y="10" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="60" y="22" width="6" height="6" fill="#2d1f1a"/><rect x="66" y="16" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="78" y="22" width="6" height="6" fill="#2d1f1a"/><rect x="84" y="16" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="60" y="34" width="6" height="6" fill="#2d1f1a"/><rect x="72" y="28" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="10" y="60" width="6" height="6" fill="#2d1f1a"/><rect x="22" y="60" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="16" y="66" width="6" height="6" fill="#2d1f1a"/><rect x="34" y="60" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="10" y="72" width="6" height="6" fill="#2d1f1a"/><rect x="28" y="72" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="40" y="66" width="6" height="6" fill="#2d1f1a"/><rect x="34" y="72" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="60" y="60" width="6" height="6" fill="#c9a87c"/><rect x="72" y="60" width="6" height="6" fill="#c9a87c"/>
+            <rect x="84" y="60" width="6" height="6" fill="#c9a87c"/><rect x="60" y="72" width="6" height="6" fill="#c9a87c"/>
+            <rect x="78" y="66" width="6" height="6" fill="#c9a87c"/><rect x="66" y="78" width="6" height="6" fill="#c9a87c"/>
+            <rect x="84" y="78" width="6" height="6" fill="#c9a87c"/><rect x="72" y="84" width="6" height="6" fill="#c9a87c"/>
+            <rect x="90" y="60" width="6" height="6" fill="#2d1f1a"/><rect x="102" y="60" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="114" y="66" width="6" height="6" fill="#2d1f1a"/><rect x="96" y="72" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="108" y="72" width="6" height="6" fill="#2d1f1a"/><rect x="120" y="60" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="90" y="84" width="6" height="6" fill="#2d1f1a"/><rect x="114" y="84" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="60" y="90" width="6" height="6" fill="#2d1f1a"/><rect x="72" y="96" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="84" y="90" width="6" height="6" fill="#2d1f1a"/><rect x="66" y="102" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="78" y="108" width="6" height="6" fill="#2d1f1a"/><rect x="60" y="114" width="6" height="6" fill="#2d1f1a"/>
+            <rect x="84" y="114" width="6" height="6" fill="#2d1f1a"/><rect x="72" y="120" width="6" height="6" fill="#2d1f1a"/>
+          </svg>
+          <span style="font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm);border:1px solid var(--warm);padding:0.3rem 0.8rem;">↗ Click mich</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="chapter-divider" style="margin: 2rem 0 3rem;"></div>
+
+    <!-- Heike -->
+    <div class="message-meta reveal">26. August 2026 · Heike · Rotenbühl</div>
+
+    <div class="paragraph reveal">
+      <p>Hallo meine allerliebste <span class="hl">Geburtstagssüßmaus</span> 🐁<br>
+      Ich wünsche dir von Herzen nur das Beste zu deinem 29. Geburtstag 😘</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Hier eine kurze Reise durch meinen Kopf, wie ich dir heute ein Lächeln ins Gesicht zaubern kann:</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>"Heikes Geburtstagsgeschenk für dich war soo schön, schenk ihr dasselbe! Ja, aber ohne Wiesbaden, sondern... Saarbrücken? Kennt sie besser als ich. Saarwellingen? 😂 Hm, das wird schwierig. Viellleicht ein Abendessen zusammen.. ATAMA fine dining. Die können richtig lecker vegan.. aber Abendkleid? Ich weiß nicht.. Besser was rockiges: Nochmal Konzerte checken.. oh cool. Berlin? Bei Esther übernachten? Die kennen sich ja nicht mal.. aber am 26. kennen sie sich. Dann brauchst du jemand für Sam. Oma und Opa? Kannst du ja anrufen. Moment erst Geschenk, dann Termin, dann anfragen + Tickets, glaub das wird schwer. Wenn Sam nicht will? Heike darf nix organisieren müssen, boah das wird nicht leicht. Matz hat angeboten auf Sam aufzupassen. Ist lieb, aber mir gefällt das noch nicht und ich glaube Heike auch noch nicht. Der hat auch genug um die Ohren. Wieso kommt Sam nicht mit? Das wär cool, aber nicht Berlin dann... Ich könnte vllt.. mal googlen.. ja das ist gut. Ok, also zu dritt mit <span class="hl">Sam</span> ohne Mateo, sonst trennen wir uns danach 🙊</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Das ist dann etwas persönliches, was von mir kommt und zu mir passt und du kannst das tun was du eigentlich willst: Ihr einen Tag schenken, an dem sie Abschalten kann und nichts planen muss 😊</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Was – Check</span>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Vielleicht können wir das kurzfristig an dem Termin machen, den Heike für meinen Geburtstag rausgesucht hat. Dann geht es erst Samstag morgen los, aber das passt.</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Wann – Check</span>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Das mit dem Schokoriegel und den Socken war super süß. Könnte ich ihr auch Socken schenken? Vllt aus'm Wind, da gibt's bestimmt coole. Die kann sie dann zu mir in ihre zukünftige Klamotten Schublade legen 🤭<br><br>
+      Ich find das mit der Tally Präsi schon cool. Mal reinschauen, ah das ist notion.. ich könnt auch mein drag path Projekt mit Geburtstagseinträgen ergänzen. Das wär mehr "ich" und vielleicht hat sie das schon wieder vergessen und es überrascht sie nochmal 😬</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Wie – check</span>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Ok, jetzt brauchst du nur noch einen glücklichen Zufall.. Martin nimmt Sam, trotz schlummernder Krankheit? Wir könnten am Vorabend in die Ilse gehen? Das ist ja perfekt! Dann lade ich sie ein und geb ihr den Link dort, dann hat sie eine schöne Umgebung und ich bin bei ihr...</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Glücklicher Zufall – check</span>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Heike, jetzt der Gefühlsteil.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Ich sagte dir "ich habe mich nicht gesehen gefühlt" und deine Fürsorge und dein Performance Mode sagten "Challenge accepted!"</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Jetzt sind wir hier und ich habe mich noch nie soo sehr <span class="hl">gesehen</span> gefühlt. Du überschüttest mich mit netten Gesten, Kaffees, Geschenken, Zeit, Anerkennung, Hilfe in allerlei Form wie Alltag, Analyse, Beratung, emotionale Begleitung und und und.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Du gibst mir so viel Wertschätzung, dass mein selbstkritisches Hirn mir immer wieder alarmierende Briefings gibt, ich gebe dir nicht das selbe Maß zurück. Und das stimmt objektiv betrachtet.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Aber ich hoffe ich gebe dir wirklich etwas zurück, das mein Bibu-bibu Hirn nicht sieht und versteht. Und ich versuche mich von dem Gedanken zu befreien, dir genauso viele Aufmerksamkeiten zu geben, wie du mir. Darauf kommt es nicht an.</p>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Aber ich arbeite daran:</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Ich bin nicht so hart zu mir.</span>
+      <span class="tag">Ich gebe dir alles was ich bin.</span>
+      <span class="tag">Ich bin genug so wie ich bin.</span>
+    </div>
+
+    <div class="paragraph reveal">
+      <p>Ich wollte hier gar nicht die Stimmung killen.<br>
+      Ich will dir sagen:</p>
+    </div>
+
+    <div class="tag-line reveal">
+      <span class="tag">Du bist sooo gut für mich</span>
+      <span class="tag">Du bist sooo ein toller Mensch</span>
+      <span class="tag">Ich bin so dankbar, dass Du Teil meines Lebens geworden bist</span>
+    </div>
+
+    <div class="paragraph reveal" style="margin-top: 2rem;">
+      <p>Alles Gute zu deinem Geburtstag 💚</p>
+    </div>
+
+    <div class="tag-line reveal" style="margin-top:2.5rem;">
+      <span class="tag">Tldr</span>
+      <span class="tag">Ausflug 26. September</span>
+      <span class="tag">mit Übernachtung</span>
+      <span class="tag">mit Sam</span>
+      <span class="tag">Festes Schuhwerk</span>
+    </div>
+
+    <div class="paragraph reveal" style="margin-top:1.5rem;">
+      <p>Du toller Mensch.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- CLOSING -->
+<footer class="closing">
+  <div class="closing-inner">
+    <p class="closing-quote reveal">Weitere Kapitel folgen.<br>Die Geschichte ist noch nicht fertig.</p>
+    <p class="closing-byline reveal">Drag Path · 2026</p>
+  </div>
+</footer>
+
+<script>
+// Stars
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 120; i++) {
+  const s = document.createElement('div');
+  s.classList.add('star');
+  const size = Math.random() * 2.5 + 0.5;
+  s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${2+Math.random()*4}s;--delay:${Math.random()*4}s;opacity:${Math.random()*0.6+0.1}`;
+  starsEl.appendChild(s);
+}
+
+// Scroll reveal
+const revealObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+// Nav active
+const chapters = [
+  { id: 'ch-0',    btn: document.querySelectorAll('.nav-btn')[0] },
+  { id: 'ch-talk', btn: document.querySelectorAll('.nav-btn')[1] },
+  { id: 'ch-1',    btn: document.querySelectorAll('.nav-btn')[2] },
+  { id: 'ch-2',    btn: document.querySelectorAll('.nav-btn')[3] },
+  { id: 'ch-wild', btn: document.querySelectorAll('.nav-btn')[4] },
+  { id: 'ch-bday', btn: document.querySelectorAll('.nav-btn')[5] },
+];
+
+function updateNav() {
+  const mid = window.scrollY + window.innerHeight * 0.4;
+  let current = chapters[0];
+  for (const c of chapters) {
+    const el = document.getElementById(c.id);
+    if (el && el.offsetTop <= mid) current = c;
+  }
+  chapters.forEach(c => c.btn.classList.remove('active'));
+  current.btn.classList.add('active');
+  current.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+window.addEventListener('scroll', updateNav, { passive: true });
+updateNav();
+
+// Scroll to chapter
+function navScrollTo(id) {
+  const el = document.getElementById(id);
+  if (el) window.scrollTo({ top: el.offsetTop - 64, behavior: 'smooth' });
+}
+
+// Audio player
+const audio = document.getElementById('voice-note');
+const playBtn = document.getElementById('play-btn');
+const waveformEl = document.getElementById('waveform');
+const timeCurrentEl = document.getElementById('time-current');
+const timeTotalEl = document.getElementById('time-total');
+const BAR_COUNT = 48;
+
+for (let i = 0; i < BAR_COUNT; i++) {
+  const b = document.createElement('div');
+  b.classList.add('waveform-bar');
+  b.style.height = Math.round((Math.random() * 0.7 + 0.15) * 26) + 'px';
+  waveformEl.appendChild(b);
+}
+
+function fmt(s) {
+  return Math.floor(s/60) + ':' + Math.floor(s%60).toString().padStart(2,'0');
+}
+audio.addEventListener('loadedmetadata', () => { timeTotalEl.textContent = fmt(audio.duration); });
+audio.addEventListener('timeupdate', () => {
+  const pct = audio.currentTime / (audio.duration || 1);
+  timeCurrentEl.textContent = fmt(audio.currentTime);
+  const played = Math.floor(pct * BAR_COUNT);
+  waveformEl.querySelectorAll('.waveform-bar').forEach((b, i) => b.classList.toggle('played', i < played));
+});
+audio.addEventListener('ended', () => {
+  playBtn.classList.remove('playing');
+  waveformEl.querySelectorAll('.waveform-bar').forEach(b => b.classList.remove('played'));
+  timeCurrentEl.textContent = '0:00';
+});
+function togglePlay() {
+  if (audio.paused) { audio.play(); playBtn.classList.add('playing'); }
+  else { audio.pause(); playBtn.classList.remove('playing'); }
+}
+function seekAudio(e) {
+  const r = waveformEl.getBoundingClientRect();
+  audio.currentTime = ((e.clientX - r.left) / r.width) * (audio.duration || 0);
+}
+</script>
+</body>
+</html>
